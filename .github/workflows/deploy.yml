@@ -43,7 +43,7 @@ jobs:
          ID=$(aws ec2 describe-instances \
          --filters "Name=tag:Name,Values=*control*" \
          --query 'Reservations[*].Instances[*].{Name:Tags[?Key==`Name`].Value | [0], ID:InstanceId, State:State.Name}' \
-         --output text
+         --output text)
          echo "sid=$(echo $ID | awk '{print $1}')" >> $GITHUB_OUTPUT 
 
     - name: Add Inbound Rule to Security Group
