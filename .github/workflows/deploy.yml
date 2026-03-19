@@ -1,6 +1,7 @@
 name: CI/CD Pipeline
 
 on:
+  workflow-dispatch:
   push:
     branches: [ "main" ]
 
@@ -26,5 +27,42 @@ jobs:
         echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
         chmod 600 $HOME/.kube/config
 
+    - name: Get Runner Public IP
+      id: get-ip
+      run: echo "ipv4=$(curl -s https://api.ipify.org)" >> $GITHUB_OUTPUT
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+         aws-region: ${{ vars.AWS_REGION }}
+
+    - name: Get the Security Group of Control plane instance
+      id: get-sid
+      run:  |
+         ID=$(aws ec2 describe-instances \
+         --filters "Name=tag:Name,Values=*control*" \
+         --query 'Reservations[*].Instances[*].{Name:Tags[?Key==`Name`].Value | [0], ID:InstanceId, State:State.Name}' \
+         --output text
+         echo "sid=$(echo $ID | awk '{print $1}')" >> $GITHUB_OUTPUT 
+
+    - name: Add Inbound Rule to Security Group
+      run: |
+          aws ec2 authorize-security-group-ingress \
+            --group-id ${{ steps.get-sid.outputs.sid }} \
+            --protocol tcp \
+            --port 6443 \
+            --cidr ${{ steps.get-ip.outputs.ipv4 }}/32
+
     - name: Deploy to Kubernetes
       run: kubectl apply -f deployment.yaml
+
+    - name: Remove Inbound Rule (Cleanup)
+      if: always() # Ensures rule is removed even if steps fail
+      run: |
+          aws ec2 revoke-security-group-ingress \
+            --group-id ${{ steps.get-sid.outputs.sid }} \
+            --protocol tcp \
+            --port 22 \
+            --cidr ${{ steps.get-ip.outputs.ipv4 }}/32
