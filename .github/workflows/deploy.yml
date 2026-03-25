@@ -57,7 +57,9 @@ jobs:
             --cidr ${{ steps.get-ip.outputs.ipv4 }}/32
 
     - name: Deploy to Kubernetes
-      run: kubectl apply -f deployment.yaml
+      run: |
+           kubectl apply -f deployment.yaml
+           kubectl apply -f service.yaml
 
     - name: Remove Inbound Rule (Cleanup)
       if: always() # Ensures rule is removed even if steps fail
