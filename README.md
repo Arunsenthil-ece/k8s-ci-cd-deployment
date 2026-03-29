@@ -1,4 +1,4 @@
-# Kubernetes CI/CD Deployment
+##🚀 Kubernetes CI/CD Deployment with GitHub Actions
 
 ## Overview
 This project demonstrates automated deployment of a containerized application to Kubernetes using CI/CD pipelines.
